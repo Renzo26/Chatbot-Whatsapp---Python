@@ -1,0 +1,84 @@
+from fastapi import FastAPI, Depends
+from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker, Session
+from datetime import datetime
+import requests
+import os
+
+# Configuração do banco de dados
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./bot_whatsapp.db")
+engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base = declarative_base()
+
+# Modelo de mensagens
+class Message(Base):
+    _tablename_ = "messages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String, index=True)
+    message = Column(Text, nullable=False)
+    response = Column(Text, nullable=True)
+    timestamp = Column(DateTime, default=datetime.utcnow)
+
+# Criar tabelas no banco de dados
+Base.metadata.create_all(bind=engine)
+
+# Inicialização da API
+app = FastAPI()
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+# Webhook para receber mensagens
+@app.post("/webhook")
+def receive_message(payload: dict, db: Session = Depends(get_db)):
+    user_id = payload.get("user_id")
+    message_text = payload.get("message")
+    
+    if not user_id or not message_text:
+        return {"error": "Invalid payload"}
+    
+    response_text = process_ai_response(message_text)
+    
+    new_message = Message(user_id=user_id, message=message_text, response=response_text)
+    db.add(new_message)
+    db.commit()
+    db.refresh(new_message)
+    
+    send_whatsapp_message(user_id, response_text)
+    
+    return {"status": "Message received", "response": response_text}
+
+# Função para processar resposta com IA
+def process_ai_response(message_text: str) -> str:
+    openai_api_key = os.getenv("OPENAI_API_KEY")
+    url = "https://api.openai.com/v1/completions"
+    headers = {"Authorization": f"Bearer {openai_api_key}"}
+    data = {
+        "model": "gpt-4",
+        "prompt": message_text,
+        "max_tokens": 100
+    }
+    response = requests.post(url, headers=headers, json=data)
+    return response.json().get("choices", [{}])[0].get("text", "")
+
+# Função para enviar mensagem pelo WhatsApp Business API
+def send_whatsapp_message(user_id: str, message_text: str):
+    whatsapp_api_url = "https://graph.facebook.com/v15.0/me/messages"
+    access_token = os.getenv("WHATSAPP_ACCESS_TOKEN")
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json"
+    }
+    data = {
+        "messaging_product": "whatsapp",
+        "to": user_id,
+        "text": {"body": message_text}
+    }
+    requests.post(whatsapp_api_url, headers=headers, json=data)
