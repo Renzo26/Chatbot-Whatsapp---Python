@@ -1,0 +1,36 @@
+-- Criar banco de dados
+CREATE DATABASE bot_whatsapp;
+USE bot_whatsapp;
+
+-- Criar tabela de usuários
+CREATE TABLE users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    telefone VARCHAR(15) UNIQUE NOT NULL,
+    nome VARCHAR(100),
+    data_cadastro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Criar tabela de mensagens
+CREATE TABLE messages (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT,
+    mensagem TEXT NOT NULL,
+    resposta TEXT,
+    data_envio TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- Criar tabela de configuração do bot
+CREATE TABLE bot_config (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    bot_name VARCHAR(50) NOT NULL,
+    default_response TEXT NOT NULL
+);
+
+-- Criar tabela de logs
+CREATE TABLE logs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    event_type VARCHAR(50) NOT NULL,
+    message TEXT NOT NULL,
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
