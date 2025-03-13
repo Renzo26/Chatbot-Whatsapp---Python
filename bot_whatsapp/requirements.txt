@@ -4,4 +4,8 @@ sqlalchemy
 mysql-connector-python
 requests
 python-dotenv
-psycopg2
+psycopg2-binary
+flask
+gunicorn
+flask-sqlalchemy
+
