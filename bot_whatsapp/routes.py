@@ -1,35 +1,32 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
-from database.config import SessionLocal
-from database.models import User, Message
+from fastapi import APIRouter, HTTPException
+import psycopg2
+import os
 
 router = APIRouter()
 
-def get_db():
-    db = SessionLocal()
+# Conectar ao banco
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+def get_db_connection():
+    return psycopg2.connect(DATABASE_URL)
+
+@router.post("/save_message/")
+async def save_message(user_id: str, message: str):
     try:
-        yield db
-    finally:
-        db.close()
+        conn = get_db_connection()
+        cursor = conn.cursor()
 
-@router.post("/webhook")
-def receive_message(payload: dict, db: Session = Depends(get_db)):
-    phone = payload.get("phone")  # Corrigido para "phone"
-    message = payload.get("message")  # Corrigido para "message"
+        # Verificar se existe uma resposta pré-definida
+        cursor.execute("SELECT response FROM predefined_responses WHERE keyword = %s;", (message,))
+        response = cursor.fetchone()
 
-    if not phone or not message:
-        return {"error": "Payload inválido"}
+        if response:
+            return {"status": "Predefined response found", "response": response[0]}
 
-    user = db.query(User).filter(User.phone == phone).first()
-
-    if not user:
-        user = User(phone=phone)  # Corrigido para "phone"
-        db.add(user)
-        db.commit()
-        db.refresh(user)
-
-    new_message = Message(user_id=user.id, message=message)  # Corrigido para "message"
-    db.add(new_message)
-    db.commit()
-
-    return {"status": "Mensagem recebida", "message": message}
+        # Se não houver resposta pré-definida, salvar a mensagem
+        cursor.execute("INSERT INTO messages (user_id, message) VALUES (%s, %s)", (user_id, message))
+        conn.commit()
+        conn.close()
+        return {"status": "Message saved"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
