@@ -7,32 +7,24 @@ from urllib.parse import quote
 
 load_dotenv()  # Carrega as variáveis do .env
 
-# Recupera as variáveis de ambiente
-username = quote(os.getenv("DB_USER", "postgres"))
-password = quote(os.getenv("DB_PASSWORD", "senha"))
-dbname = os.getenv("DB_NAME", "bot_WhatsApp")
+# Recupera as variáveis do ambiente
+DATABASE_URL = os.getenv("DATABASE_URL")
 
-# Cria a URL de conexão com o banco de dados
-DATABASE_URL = f"postgresql://{username}:{password}@localhost/{dbname}"
+if not DATABASE_URL:
+    raise ValueError("Erro: DATABASE_URL não encontrada! Configure no Vercel com a URL do Supabase.")
 
-# Exibe a URL de conexão
+# Exibe a URL de conexão (somente para depuração - remova em produção)
 print("DATABASE_URL:", DATABASE_URL)
 
 # Teste de conexão direta com psycopg2
 try:
-    conn = psycopg2.connect(
-        dbname=dbname,
-        user=username,
-        password=password,
-        host="localhost",
-        client_encoding='UTF8'  # Força o uso de UTF-8
-    )
-    print("Conexão bem-sucedida!")
+    conn = psycopg2.connect(DATABASE_URL, sslmode="require")  # SSL obrigatório no Supabase
+    print("Conexão com o banco de dados bem-sucedida!")
 except Exception as e:
     print(f"Erro ao conectar ao banco de dados: {e}")
 
 # Criação do engine para conectar ao banco de dados PostgreSQL
-engine = create_engine(DATABASE_URL)
+engine = create_engine(DATABASE_URL, pool_pre_ping=True, echo=True, connect_args={"sslmode": "require"})
 
 # SessionLocal configura a sessão do SQLAlchemy
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
