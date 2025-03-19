@@ -5,29 +5,32 @@ from dotenv import load_dotenv
 import psycopg2
 from urllib.parse import quote
 
-load_dotenv()  # Carrega as variáveis do .env
+# Carrega variáveis do .env
+load_dotenv()
 
-# Recupera as variáveis do ambiente
+# Obtém a URL do banco de dados do ambiente
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 if not DATABASE_URL:
-    raise ValueError("Erro: DATABASE_URL não encontrada! Configure no Vercel com a URL do Supabase.")
+    raise ValueError("❌ ERRO: DATABASE_URL não configurada! Verifique as variáveis de ambiente no Vercel.")
 
-# Exibe a URL de conexão (somente para depuração - remova em produção)
-print("DATABASE_URL:", DATABASE_URL)
-
-# Teste de conexão direta com psycopg2
+# Teste de conexão direta com o Supabase usando psycopg2
 try:
-    conn = psycopg2.connect(DATABASE_URL, sslmode="require")  # SSL obrigatório no Supabase
-    print("Conexão com o banco de dados bem-sucedida!")
+    conn = psycopg2.connect(DATABASE_URL, sslmode="require")  # Supabase exige SSL
+    conn.close()
+    print("✅ Conexão bem-sucedida com o banco de dados Supabase!")
 except Exception as e:
-    print(f"Erro ao conectar ao banco de dados: {e}")
+    print(f"❌ ERRO ao conectar ao banco de dados: {e}")
 
-# Criação do engine para conectar ao banco de dados PostgreSQL
-engine = create_engine(DATABASE_URL, pool_pre_ping=True, echo=True, connect_args={"sslmode": "require"})
+# Criar o engine do SQLAlchemy
+engine = create_engine(
+    DATABASE_URL,
+    pool_pre_ping=True,  # Garante que a conexão está ativa antes de usá-la
+    connect_args={"sslmode": "require"}  # SSL obrigatório para Supabase
+)
 
-# SessionLocal configura a sessão do SQLAlchemy
+# Criar sessão com pool de conexões
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# Base para os modelos declarativos
+# Criar base para os modelos
 Base = declarative_base()
