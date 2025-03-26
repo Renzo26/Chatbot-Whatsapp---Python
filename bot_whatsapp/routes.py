@@ -1,13 +1,15 @@
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException
 import psycopg2
 import os
 from datetime import datetime
 
 router = APIRouter()
 
+# URL do banco (vem do Supabase)
 DATABASE_URL = os.getenv("DATABASE_URL")
+
 if not DATABASE_URL:
-    raise RuntimeError("DATABASE_URL não foi encontrada!")
+    raise RuntimeError("Erro: DATABASE_URL não foi encontrada! Configure no Vercel.")
 
 def get_db_connection():
     try:
@@ -17,38 +19,43 @@ def get_db_connection():
         raise HTTPException(status_code=500, detail=f"Erro ao conectar ao banco: {str(e)}")
 
 @router.post("/api/salvar")
-async def save_message(request: Request):
+async def salvar_mensagem(numero: str, mensagem: str):
     try:
-        data = await request.json()
-
-        user_id = str(data.get("numero"))
-        mensagem = data.get("mensagem")
-        data_envio = data.get("timestamp")
-
-        if not user_id or not mensagem:
-            raise HTTPException(status_code=400, detail="Campos obrigatórios: 'numero' e 'mensagem'")
-
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # Verificar resposta pré-definida
-        cursor.execute("SELECT response FROM predefined_responses WHERE keyword = %s;", (mensagem,))
-        response = cursor.fetchone()
+        # 🔍 Verifica se já existe um usuário com esse número
+        cursor.execute("SELECT id FROM users WHERE telefone = %s", (numero,))
+        result = cursor.fetchone()
 
-        if response:
+        if result:
+            user_id = result[0]
+        else:
+            # 👤 Se não existir, cria novo usuário
+            cursor.execute(
+                "INSERT INTO users (telefone, nome, data_cadastro) VALUES (%s, %s, %s) RETURNING id",
+                (numero, 'Usuário WhatsApp', datetime.utcnow())
+            )
+            user_id = cursor.fetchone()[0]
+            conn.commit()
+
+        # 🔍 Verifica se a mensagem tem resposta pré-definida
+        cursor.execute("SELECT response FROM predefined_responses WHERE keyword = %s", (mensagem,))
+        predefined = cursor.fetchone()
+
+        if predefined:
             conn.close()
-            return {"status": "Resposta pré-definida encontrada", "resposta": response[0]}
+            return {"status": "Resposta automática", "resposta": predefined[0]}
 
-        # Inserir mensagem no banco
-        cursor.execute("""
-            INSERT INTO messages (user_id, mensagem, data_envio)
-            VALUES (%s, %s, %s);
-        """, (user_id, mensagem, data_envio))
-
+        # 💾 Se não houver resposta, salva a mensagem na tabela messages
+        cursor.execute(
+            "INSERT INTO messages (user_id, mensagem, data_envio) VALUES (%s, %s, %s)",
+            (user_id, mensagem, datetime.utcnow())
+        )
         conn.commit()
         conn.close()
 
-        return {"status": "Mensagem salva com sucesso"}
+        return {"status": "Mensagem salva com sucesso", "user_id": user_id}
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao salvar mensagem: {str(e)}")
