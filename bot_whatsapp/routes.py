@@ -1,30 +1,36 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Request, HTTPException
 import psycopg2
 import os
 
 router = APIRouter()
 
-# Pegando a URL do banco do Supabase (corrigido)
+# URL do banco (Vercel env var)
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 if not DATABASE_URL:
     raise RuntimeError("Erro: DATABASE_URL não foi encontrada! Configure no Vercel.")
 
-# Conectar ao banco com um pool de conexões para evitar sobrecarga
 def get_db_connection():
     try:
-        conn = psycopg2.connect(DATABASE_URL, sslmode="require")  # Adicionando SSL para Supabase
+        conn = psycopg2.connect(DATABASE_URL, sslmode="require")
         return conn
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao conectar ao banco: {str(e)}")
 
-@router.post("/save_message/")
-async def save_message(user_id: str, message: str):
+@router.post("/api/salvar")
+async def salvar_mensagem(request: Request):
     try:
+        data = await request.json()
+        user_id = data.get("numero")
+        message = data.get("mensagem")
+
+        if not user_id or not message:
+            raise HTTPException(status_code=400, detail="Campos obrigatórios: 'numero' e 'mensagem'")
+
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # Verificar se existe uma resposta pré-definida
+        # Verificar resposta pré-definida
         cursor.execute("SELECT response FROM predefined_responses WHERE keyword = %s;", (message,))
         response = cursor.fetchone()
 
@@ -32,7 +38,7 @@ async def save_message(user_id: str, message: str):
             conn.close()
             return {"status": "Predefined response found", "response": response[0]}
 
-        # Se não houver resposta pré-definida, salvar a mensagem
+        # Se não houver, salvar a mensagem
         cursor.execute("INSERT INTO messages (user_id, message) VALUES (%s, %s)", (user_id, message))
         conn.commit()
         conn.close()
