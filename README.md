@@ -47,16 +47,3 @@ graph TD;
   I --> F
 
 
----
-
-## 🔄 Fluxo de Automação
-
-```mermaid
-graph TD;
-    A[Webhook Recebe Mensagem] --> B{Mensagem pré-definida?};
-    B -- Sim --> C[Retorna resposta pronta];
-    B -- Não --> D[Consulta na OpenAI];
-    C --> E[Salva no Supabase];
-    D --> F[Formata resposta];
-    F --> G[Envia mensagem WhatsApp];
-    G --> E;
