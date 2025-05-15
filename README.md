@@ -1,44 +1,51 @@
-#  Chatbot via WhatsApp
+# 🤖 Chatbot de Atendimento (Vendas / Instrutor) via WhatsApp
 
-Este projeto implementa um chatbot automatizado usando **n8n**, **API Oficial do WhatsApp (Meta)**, **OpenAI GPT-3.5** e **Supabase** para confirmação de consultas, exames e vacinas da rede pública de saúde.
+Este projeto é um fluxo de atendimento inteligente via WhatsApp, automatizado com **n8n**, **OpenAI GPT-3.5 Turbo**, **WhatsApp Cloud API (Meta)** e **Supabase**. Ele é voltado para responder dúvidas de usuários sobre serviços de vendas, produtos ou agendamento com instrutor, oferecendo respostas inteligentes e armazenando os registros no banco de dados.
 
 ---
 
 ## 📌 Funcionalidades
 
-- ✅ Envio automático de mensagens de confirmação para pacientes via WhatsApp
-- 📥 Recebimento das respostas e tratamento via n8n
-- 🤖 Respostas automáticas via API do ChatGPT (quando necessário)
-- 💾 Salvamento de logs e mensagens no banco de dados PostgreSQL/Supabase
-- 📊 Organização do fluxo via painel visual no n8n
-- 🧾 Envio de filipeta de agendamento simulada ao final da conversa
+- ✅ Recebimento de mensagens via Webhook do WhatsApp
+- 🔁 Verificação de palavras-chave para resposta rápida (pré-definidas)
+- 💬 Geração de resposta via ChatGPT se não houver correspondência
+- 📲 Envio automatizado da resposta no próprio WhatsApp
+- 💾 Armazenamento das interações no Supabase (mensagens e respostas)
 
 ---
 
 ## 🛠️ Tecnologias Utilizadas
 
-### 2.1 Backend e Automação
+### Backend e Orquestração
 
-- `n8n`: Plataforma de automação no-code usada para orquestrar o fluxo de mensagens
-- `Python + FastAPI`: API auxiliar para salvar mensagens no banco
-- `Supabase`: Banco de dados PostgreSQL hospedado na nuvem
-- `Vercel`: Hospedagem gratuita para API FastAPI
+- **n8n**: Fluxo visual de automação
+- **Python + FastAPI**: API auxiliar (opcional) para gravação de dados
+- **Supabase**: Banco de dados PostgreSQL gerenciado
+- **Vercel**: Hospedagem gratuita da API de backend
 
-### 2.2 Integração com WhatsApp
+### Integração e Mensageria
 
-- `Meta WhatsApp Cloud API`: Canal oficial para envio e recebimento de mensagens
-- `Webhook n8n`: Captura das mensagens recebidas
-- `Template Message`: Usado para envio de mensagens fora da janela de 24h
+- **Meta WhatsApp Cloud API**: Canal oficial para envio e recebimento
+- **Webhook n8n**: Captura das mensagens recebidas
+- **ChatGPT API (OpenAI)**: Para gerar respostas inteligentes
 
-### 2.3 Processamento de Mensagens com IA
+---
 
-- `OpenAI GPT-3.5 Turbo`: Utilizado para responder perguntas abertas ou genéricas
-- `Switch Node`: Gera decisões para respostas predefinidas
+## 🔄 Fluxo Automatizado
 
-### 2.4 Banco de Dados
+```mermaid
+graph TD;
+  A[Webhook Recebe Mensagem] --> B{Mensagem pré-definida?}
+  B -- Sim --> C[Resposta pronta via Opção de Resposta]
+  C --> D[Montar Resposta Final]
+  D --> E[Enviar via WhatsApp]
+  E --> F[Salvar no Supabase]
 
-- `Supabase (PostgreSQL)`: Armazena usuários, mensagens, respostas e logs
-- `Tabelas`: users, messages, logs, bot_config, predefined_responses
+  B -- Não --> G[Chamar ChatGPT 3.5 Turbo]
+  G --> H[Montar Resposta IA]
+  H --> I[Enviar via WhatsApp]
+  I --> F
+
 
 ---
 
