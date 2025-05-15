@@ -1,4 +1,4 @@
-#  Chatbot de Confirmação de Consultas via WhatsApp
+#  Chatbot via WhatsApp
 
 Este projeto implementa um chatbot automatizado usando **n8n**, **API Oficial do WhatsApp (Meta)**, **OpenAI GPT-3.5** e **Supabase** para confirmação de consultas, exames e vacinas da rede pública de saúde.
 
