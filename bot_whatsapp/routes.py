@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, Request
 import psycopg2
 import os
 from datetime import datetime
+import re
 
 router = APIRouter()
 
@@ -17,17 +18,37 @@ def get_db_connection():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro na conexão com o banco: {str(e)}")
 
+def format_phone_number(phone):
+    """
+    Formata o número de telefone para garantir compatibilidade com o banco de dados.
+    Remove caracteres não numéricos e mantém apenas os últimos 15 dígitos caso necessário.
+    """
+    # Remove todos os caracteres não-numéricos (como +, espaços, parênteses, etc)
+    digits_only = re.sub(r'\D', '', phone)
+    
+    # Se o número tiver mais de 15 dígitos, mantém apenas os últimos 15
+    if len(digits_only) > 15:
+        return digits_only[-15:]
+    
+    return digits_only
+
 @router.post("/api/salvar")
 async def salvar_dados(request: Request):
     try:
         body = await request.json()
 
         mensagem = body.get("mensagem")
-        numero = body.get("numero")
-        timestamp = body.get("timestamp")
+        numero_original = body.get("numero")
+        timestamp = body.get("timestamp") or datetime.now()
 
-        if not mensagem or not numero:
+        if not mensagem or not numero_original:
             raise HTTPException(status_code=400, detail="Campos obrigatórios: 'numero' e 'mensagem'")
+        
+        # Formata o número de telefone para garantir compatibilidade
+        numero = format_phone_number(numero_original)
+        
+        # Log para debug
+        print(f"Número original: {numero_original} | Formatado: {numero}")
 
         conn = get_db_connection()
         cursor = conn.cursor()
